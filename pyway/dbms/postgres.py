@@ -39,6 +39,13 @@ class Postgres():
         cur.execute(script)
         conn.commit()
 
+    def execute_dryrun(self, scripts: list[str]) -> None:
+        conn = self.connect()
+        for script in scripts:
+            cur = conn.cursor()
+            cur.execute(script)
+        conn.rollback()
+
     def get_all_schema_migrations(self) -> List[Migration]:
         cnx = self.connect()
         cursor = cnx.cursor()

@@ -16,23 +16,43 @@ class Migrate():
         self.migration_dir = args.database_migration_dir
         self.args = args
 
-    def run(self) -> str:
+    def run(self, dryrun=False) -> str:
         output = ''
         migrations_to_be_executed = self._get_migration_files_to_be_executed()
         if not migrations_to_be_executed:
             output += Utils.color("Nothing to do\n", bcolors.FAIL)
             return output
 
-        for migration in migrations_to_be_executed:
-            output += Utils.color(f"Migrating --> {migration.name}\n", bcolors.OKBLUE)
+        if dryrun:
+            # Dryruns need to run all the new migration scripts in one connection, so that references changes in earlier
+            # scripts are present for later scripts
+            output += Utils.color(f"Performing dryrun\n", bcolors.OKBLUE)
             try:
-                with open(os.path.join(os.getcwd(),
-                          self.migration_dir, migration.name), "r", encoding='utf-8') as sqlfile:
-                    self._db.execute(sqlfile.read())
-                self._db.upgrade_version(migration)
-                output += Utils.color(f"{migration.name} SUCCESS\n", bcolors.OKBLUE)
+                files = []
+                for migration in migrations_to_be_executed:
+                    with open(os.path.join(os.getcwd(),
+                                           self.migration_dir, migration.name), "r", encoding='utf-8') as sqlfile:
+                        files.append(sqlfile.read())
+                self._db.execute_dryrun(files)
             except Exception as error:
                 raise RuntimeError(error)
+        else:
+            for migration in migrations_to_be_executed:
+                output += Utils.color(f"Migrating --> {migration.name}\n", bcolors.OKBLUE)
+                try:
+                    if dryrun:
+                        with open(os.path.join(os.getcwd(),
+                                               self.migration_dir, migration.name), "r", encoding='utf-8') as sqlfile:
+                            self._db.execute_dryrun(sqlfile.read())
+                        output += Utils.color(f"{migration.name} SUCCESSFUL DRYRUN\n", bcolors.OKBLUE)
+                    else:
+                        with open(os.path.join(os.getcwd(),
+                                  self.migration_dir, migration.name), "r", encoding='utf-8') as sqlfile:
+                            self._db.execute(sqlfile.read())
+                        self._db.upgrade_version(migration)
+                        output += Utils.color(f"{migration.name} SUCCESS\n", bcolors.OKBLUE)
+                except Exception as error:
+                    raise RuntimeError(error)
         return output
 
     def _get_migration_files_to_be_executed(self) -> List:

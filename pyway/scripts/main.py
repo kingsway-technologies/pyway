@@ -21,6 +21,16 @@ def migrate(config: ConfigFile) -> None:
     logger.info('Migration completed.')
 
 
+def dryrun(config: ConfigFile) -> None:
+    # Validate first
+    validate(config, skip_errors=True)
+
+    logger.info('Starting dryrun process...')
+    output = Migrate(config).run(dryrun=True)
+    logger.info(output)
+    logger.info('Dryrun completed.')
+
+
 def validate(config: ConfigFile, skip_errors: bool = False) -> None:
     logger.info('Starting validation process')
     output = Validate(config).run(skip_initial_check=True)
@@ -48,7 +58,7 @@ def checksum(config: ConfigFile) -> None:
 
 
 def cli() -> None:
-    logger.info(f"PyWay {__version__}")
+    logger.info(f"PyWay {__version__} (021)")
 
     config = ConfigFile()
     config = Settings.parse_config_file(config)
@@ -71,6 +81,8 @@ def cli() -> None:
         validate(config)
     elif config.cmd == "migrate":
         migrate(config)
+    elif config.cmd == "dryrun":
+        dryrun(config)
     elif config.cmd == "import":
         import_(config)
     elif config.cmd == "checksum":
